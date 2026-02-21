@@ -188,38 +188,29 @@ async function sendMessage(){
     chatMessages.appendChild(assistantEl);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    // Fake typing indicator
-    const fakeTyping = setTimeout(()=>{},0);
+    // --- ارسال به API واقعی ---
+    const response = await fetch("/api/chat", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ messages: chatHistory })
+    });
 
-    // Simulate API (برای تست)
-    const responseText = `سلام پرهام 😎\nاین یک پیام تست است.\n\n\`\`\`javascript\nconsole.log('Hello World');\n\`\`\``;
+    if(!response.ok) throw new Error("API error");
 
-    // Simulate streaming
-    let index=0;
-    const interval = setInterval(()=>{
-      if(index>=responseText.length){
-        clearInterval(interval);
-        chatHistory.push({ role:"assistant", content: responseText });
-        isProcessing=false;
-        userInput.disabled=false;
-        sendButton.disabled=false;
-        userInput.focus();
-        return;
-      }
-      const next = responseText.slice(index,index+1);
-      contentEl.textContent += next;
-      index++;
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    },10);
+    // فرض: API متن کامل AI را برمی‌گرداند و خودش ``` … ``` را مشخص کرده
+    const aiText = await response.text();
 
-    setTimeout(()=>renderMarkdown(contentEl, contentEl.textContent),responseText.length*10 + 100);
+    renderMarkdown(contentEl, aiText);
+    chatHistory.push({ role:"assistant", content: aiText });
 
-  }catch(err){
+  } catch(err){
     console.error(err);
     addMessage("assistant","⚠️ مشکلی رخ داد.");
+  } finally{
     isProcessing=false;
     userInput.disabled=false;
     sendButton.disabled=false;
+    userInput.focus();
   }
 }
 
@@ -234,14 +225,15 @@ function addMessage(role, content){
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Render markdown & code copy
+// Markdown + Code Copy
 function renderMarkdown(element, text){
+  // تبدیل بلوک کد
   const codeRegex=/```([\s\S]*?)```/g;
   let html=text.replace(codeRegex,(m,p1)=>`<pre><code>${p1.trim()}</code></pre>`);
   html=html.split("\n\n").map(p=>p.includes("<pre>")?p:`<p>${p}</p>`).join("");
   element.innerHTML=html;
 
-  // Add copy buttons
+  // دکمه Copy برای هر بلوک کد
   const blocks = element.querySelectorAll("pre");
   blocks.forEach(block=>{
     if(block.querySelector(".copy-btn")) return;
@@ -260,5 +252,6 @@ function renderMarkdown(element, text){
   });
 }
 </script>
+
 </body>
 </html>
