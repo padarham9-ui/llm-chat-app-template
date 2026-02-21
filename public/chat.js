@@ -1,20 +1,25 @@
+/**
+ * LLM Chat App Frontend – ChatGPT Style
+ */
+
 const chatMessages = document.getElementById("chat-messages");
 const userInput = document.getElementById("user-input");
 const sendButton = document.getElementById("send-button");
+const typingIndicator = document.getElementById("typing-indicator");
 
 let chatHistory = [
   { role: "assistant", content: "سلام پرهام 😎\nالان UI شبیه ChatGPT شد. بگو چی بسازیم؟" }
 ];
 let isProcessing = false;
 
-// Auto-resize
+// Auto resize textarea
 userInput.addEventListener("input", () => {
   userInput.style.height = "auto";
   userInput.style.height = userInput.scrollHeight + "px";
 });
 
 // Enter to send
-userInput.addEventListener("keydown", (e) => {
+userInput.addEventListener("keydown", e => {
   if(e.key === "Enter" && !e.shiftKey){
     e.preventDefault();
     sendMessage();
@@ -23,7 +28,8 @@ userInput.addEventListener("keydown", (e) => {
 
 sendButton.addEventListener("click", sendMessage);
 
-async function sendMessage(){
+// Send message function
+async function sendMessage() {
   const message = userInput.value.trim();
   if(!message || isProcessing) return;
 
@@ -34,7 +40,7 @@ async function sendMessage(){
   addMessage("user", message);
   userInput.value = "";
   userInput.style.height = "auto";
-  chatHistory.push({role:"user", content:message});
+  chatHistory.push({ role: "user", content: message });
 
   try {
     const assistantEl = document.createElement("div");
@@ -45,23 +51,25 @@ async function sendMessage(){
     chatMessages.appendChild(assistantEl);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
+    typingIndicator?.classList.add("visible");
+
     const response = await fetch("/api/chat", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({messages:chatHistory})
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: chatHistory })
     });
 
-    if(!response.ok || !response.body) throw new Error("API Error");
+    if(!response.ok || !response.body) throw new Error("API error");
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = "", text="";
+    let responseText = "", buffer = "";
+    let doneReading = false;
 
-    while(true){
-      const {done, value} = await reader.read();
+    while(!doneReading){
+      const { done, value } = await reader.read();
       if(done) break;
-
-      buffer += decoder.decode(value, {stream:true});
+      buffer += decoder.decode(value, { stream:true });
       const parts = buffer.split("\n\n");
       buffer = parts.pop();
 
@@ -69,68 +77,81 @@ async function sendMessage(){
         const lines = part.split("\n");
         for(const line of lines){
           if(!line.startsWith("data:")) continue;
-          const data = line.replace("data:","").trim();
-          if(data === "[DONE]") break;
+          const data = line.replace("data:", "").trim();
+          if(data === "[DONE]") { doneReading = true; break; }
 
-          try{
+          try {
             const json = JSON.parse(data);
-            let content = json.response || json.choices?.[0]?.delta?.content || "";
+            let content = "";
+            if(json.response) content = json.response;
+            else if(json.choices?.[0]?.delta?.content) content = json.choices[0].delta.content;
+
             if(content){
-              text += content;
-              renderMarkdown(contentEl, text);
-              chatMessages.scrollTop = chatMessages.scrollHeight;
+              responseText += content;
+              renderMarkdown(contentEl, responseText);
             }
-          }catch(e){console.error(e)}
+          } catch(e){
+            console.error("Parse error:", e, data);
+          }
         }
       }
     }
 
-    if(text) chatHistory.push({role:"assistant", content:text});
+    if(responseText) chatHistory.push({ role: "assistant", content: responseText });
 
-  }catch(e){
-    console.error(e);
-    addMessage("assistant","⚠️ خطا در دریافت پاسخ از AI.");
-  }finally{
-    isProcessing=false;
-    userInput.disabled=false;
-    sendButton.disabled=false;
+  } catch(err){
+    console.error(err);
+    addMessage("assistant", "⚠️ متاسفم، مشکلی در پردازش پاسخ رخ داد.");
+  } finally {
+    isProcessing = false;
+    userInput.disabled = false;
+    sendButton.disabled = false;
     userInput.focus();
+    typingIndicator?.classList.remove("visible");
   }
 }
 
+// Add message (user or assistant)
 function addMessage(role, content){
-  const messageEl = document.createElement("div");
-  messageEl.className = `message ${role}`;
+  const msgEl = document.createElement("div");
+  msgEl.className = `message ${role}`;
   const contentEl = document.createElement("div");
   contentEl.className = "message-content";
   renderMarkdown(contentEl, content);
-  messageEl.appendChild(contentEl);
-  chatMessages.appendChild(messageEl);
+  msgEl.appendChild(contentEl);
+  chatMessages.appendChild(msgEl);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// --- Markdown render + Copy button ---
+// Markdown render with code block support
 function renderMarkdown(element, text){
-  // اگر marked.js موجود باشه استفاده می‌کنیم
-  if(typeof marked !== "undefined"){
-    element.innerHTML = marked.parse(text);
-  }else{
-    element.textContent = text;
-  }
+  // Convert ```code``` to <pre><code>
+  const codeRegex = /```([\s\S]*?)```/g;
+  let html = text.replace(codeRegex, (match, p1)=>{
+    return `<pre><code>${p1.trim()}</code></pre>`;
+  });
+
+  // Split by paragraphs
+  html = html.split("\n\n").map(p=>{
+    if(p.includes("<pre>")) return p;
+    return `<p>${p}</p>`;
+  }).join("");
+
+  element.innerHTML = html;
   addCopyButtons(element);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+// Add copy button to <pre><code>
 function addCopyButtons(container){
   const blocks = container.querySelectorAll("pre");
   blocks.forEach(block=>{
     if(block.querySelector(".copy-btn")) return;
 
     block.style.position="relative";
-
     const button = document.createElement("button");
-    button.innerText="Copy";
     button.className="copy-btn";
-
+    button.innerText="Copy";
     button.onclick = ()=>{
       const code = block.querySelector("code")?.innerText || "";
       navigator.clipboard.writeText(code);
