@@ -77,7 +77,7 @@ async function sendMessage(){
             let content = json.response || json.choices?.[0]?.delta?.content || "";
             if(content){
               text += content;
-              contentEl.textContent = text;
+              renderMarkdown(contentEl, text);
               chatMessages.scrollTop = chatMessages.scrollHeight;
             }
           }catch(e){console.error(e)}
@@ -103,8 +103,52 @@ function addMessage(role, content){
   messageEl.className = `message ${role}`;
   const contentEl = document.createElement("div");
   contentEl.className = "message-content";
-  contentEl.textContent = content;
+  renderMarkdown(contentEl, content);
   messageEl.appendChild(contentEl);
   chatMessages.appendChild(messageEl);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// --- Markdown render + Copy button ---
+function renderMarkdown(element, text){
+  // اگر marked.js موجود باشه استفاده می‌کنیم
+  if(typeof marked !== "undefined"){
+    element.innerHTML = marked.parse(text);
+  }else{
+    element.textContent = text;
+  }
+  addCopyButtons(element);
+}
+
+function addCopyButtons(container){
+  const blocks = container.querySelectorAll("pre");
+  blocks.forEach(block=>{
+    if(block.querySelector(".copy-btn")) return;
+
+    block.style.position="relative";
+
+    const button = document.createElement("button");
+    button.innerText="Copy";
+    button.className="copy-btn";
+
+    button.onclick = ()=>{
+      const code = block.querySelector("code")?.innerText || "";
+      navigator.clipboard.writeText(code);
+      button.innerText="Copied!";
+      setTimeout(()=>button.innerText="Copy",1500);
+    };
+
+    button.style.position="absolute";
+    button.style.top="6px";
+    button.style.right="6px";
+    button.style.padding="3px 7px";
+    button.style.fontSize="12px";
+    button.style.borderRadius="6px";
+    button.style.border="none";
+    button.style.cursor="pointer";
+    button.style.background="#10a37f";
+    button.style.color="#fff";
+
+    block.appendChild(button);
+  });
 }
