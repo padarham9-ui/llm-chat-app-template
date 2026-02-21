@@ -1,5 +1,5 @@
 /**
- * LLM Chat App Frontend – ChatGPT Style
+ * ChatGPT-Style AI Chat Frontend – Complete Version
  */
 
 const chatMessages = document.getElementById("chat-messages");
@@ -10,15 +10,16 @@ const typingIndicator = document.getElementById("typing-indicator");
 let chatHistory = [
   { role: "assistant", content: "سلام پرهام 😎\nالان UI شبیه ChatGPT شد. بگو چی بسازیم؟" }
 ];
+
 let isProcessing = false;
 
-// Auto resize textarea
+// Auto-resize textarea
 userInput.addEventListener("input", () => {
   userInput.style.height = "auto";
   userInput.style.height = userInput.scrollHeight + "px";
 });
 
-// Enter to send
+// Send on Enter
 userInput.addEventListener("keydown", e => {
   if(e.key === "Enter" && !e.shiftKey){
     e.preventDefault();
@@ -28,8 +29,7 @@ userInput.addEventListener("keydown", e => {
 
 sendButton.addEventListener("click", sendMessage);
 
-// Send message function
-async function sendMessage() {
+async function sendMessage(){
   const message = userInput.value.trim();
   if(!message || isProcessing) return;
 
@@ -69,6 +69,7 @@ async function sendMessage() {
     while(!doneReading){
       const { done, value } = await reader.read();
       if(done) break;
+
       buffer += decoder.decode(value, { stream:true });
       const parts = buffer.split("\n\n");
       buffer = parts.pop();
@@ -111,7 +112,7 @@ async function sendMessage() {
   }
 }
 
-// Add message (user or assistant)
+// Add a message to the chat
 function addMessage(role, content){
   const msgEl = document.createElement("div");
   msgEl.className = `message ${role}`;
@@ -123,15 +124,15 @@ function addMessage(role, content){
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Markdown render with code block support
+// Render markdown & handle code blocks with copy button
 function renderMarkdown(element, text){
-  // Convert ```code``` to <pre><code>
+  // تبدیل بلوک‌های ```code``` به <pre><code>
   const codeRegex = /```([\s\S]*?)```/g;
   let html = text.replace(codeRegex, (match, p1)=>{
     return `<pre><code>${p1.trim()}</code></pre>`;
   });
 
-  // Split by paragraphs
+  // متن عادی را به <p> تبدیل کن
   html = html.split("\n\n").map(p=>{
     if(p.includes("<pre>")) return p;
     return `<p>${p}</p>`;
@@ -139,37 +140,40 @@ function renderMarkdown(element, text){
 
   element.innerHTML = html;
   addCopyButtons(element);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  element.parentElement.scrollTop = element.parentElement.scrollHeight;
 }
 
-// Add copy button to <pre><code>
+// Add copy button to all <pre><code>
 function addCopyButtons(container){
   const blocks = container.querySelectorAll("pre");
   blocks.forEach(block=>{
     if(block.querySelector(".copy-btn")) return;
 
     block.style.position="relative";
-    const button = document.createElement("button");
-    button.className="copy-btn";
-    button.innerText="Copy";
-    button.onclick = ()=>{
-      const code = block.querySelector("code")?.innerText || "";
-      navigator.clipboard.writeText(code);
-      button.innerText="Copied!";
-      setTimeout(()=>button.innerText="Copy",1500);
+
+    const btn = document.createElement("button");
+    btn.innerText="Copy";
+    btn.className="copy-btn";
+
+    btn.onclick = ()=>{
+      const codeText = block.querySelector("code")?.innerText || "";
+      if(!codeText) return;
+      navigator.clipboard.writeText(codeText);
+      btn.innerText="Copied!";
+      setTimeout(()=>btn.innerText="Copy",1500);
     };
 
-    button.style.position="absolute";
-    button.style.top="6px";
-    button.style.right="6px";
-    button.style.padding="3px 7px";
-    button.style.fontSize="12px";
-    button.style.borderRadius="6px";
-    button.style.border="none";
-    button.style.cursor="pointer";
-    button.style.background="#10a37f";
-    button.style.color="#fff";
+    btn.style.position="absolute";
+    btn.style.top="6px";
+    btn.style.right="6px";
+    btn.style.padding="3px 7px";
+    btn.style.fontSize="12px";
+    btn.style.borderRadius="6px";
+    btn.style.border="none";
+    btn.style.cursor="pointer";
+    btn.style.background="#10a37f";
+    btn.style.color="#fff";
 
-    block.appendChild(button);
+    block.appendChild(btn);
   });
 }
