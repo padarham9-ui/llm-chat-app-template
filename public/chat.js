@@ -3,18 +3,19 @@ const userInput = document.getElementById("user-input");
 const sendButton = document.getElementById("send-button");
 
 let chatHistory = [
-  {role:"assistant", content:"سلام! چطور می‌تونم کمکتون کنم؟"}
+  { role: "assistant", content: "سلام پرهام 😎\nالان UI شبیه ChatGPT شد. بگو چی بسازیم؟" }
 ];
+let isProcessing = false;
 
-let isProcessing=false;
-
+// Auto-resize
 userInput.addEventListener("input", () => {
-  userInput.style.height="auto";
+  userInput.style.height = "auto";
   userInput.style.height = userInput.scrollHeight + "px";
 });
 
-userInput.addEventListener("keydown", e => {
-  if(e.key==="Enter" && !e.shiftKey){
+// Enter to send
+userInput.addEventListener("keydown", (e) => {
+  if(e.key === "Enter" && !e.shiftKey){
     e.preventDefault();
     sendMessage();
   }
@@ -26,34 +27,70 @@ async function sendMessage(){
   const message = userInput.value.trim();
   if(!message || isProcessing) return;
 
-  isProcessing=true;
-  userInput.disabled=true;
-  sendButton.disabled=true;
+  isProcessing = true;
+  userInput.disabled = true;
+  sendButton.disabled = true;
 
   addMessage("user", message);
+  userInput.value = "";
+  userInput.style.height = "auto";
   chatHistory.push({role:"user", content:message});
-  userInput.value="";
-  userInput.style.height="auto";
 
-  try{
+  try {
+    const assistantEl = document.createElement("div");
+    assistantEl.className = "message assistant";
+    const contentEl = document.createElement("div");
+    contentEl.className = "message-content";
+    assistantEl.appendChild(contentEl);
+    chatMessages.appendChild(assistantEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
     const response = await fetch("/api/chat", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({messages:chatHistory})
+      body: JSON.stringify({messages:chatHistory})
     });
 
-    if(!response.ok) throw new Error("خطا در دریافت پاسخ AI");
-    const data = await response.json();
-    const aiText = data.response || "⚠️ پاسخ AI موجود نیست";
+    if(!response.ok || !response.body) throw new Error("API Error");
 
-    addMessage("assistant", aiText);
-    chatHistory.push({role:"assistant", content:aiText});
-  }
-  catch(err){
-    console.error(err);
-    addMessage("assistant","⚠️ خطا در دریافت پاسخ AI");
-  }
-  finally{
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "", text="";
+
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+
+      buffer += decoder.decode(value, {stream:true});
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop();
+
+      for(const part of parts){
+        const lines = part.split("\n");
+        for(const line of lines){
+          if(!line.startsWith("data:")) continue;
+          const data = line.replace("data:","").trim();
+          if(data === "[DONE]") break;
+
+          try{
+            const json = JSON.parse(data);
+            let content = json.response || json.choices?.[0]?.delta?.content || "";
+            if(content){
+              text += content;
+              contentEl.textContent = text;
+              chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+          }catch(e){console.error(e)}
+        }
+      }
+    }
+
+    if(text) chatHistory.push({role:"assistant", content:text});
+
+  }catch(e){
+    console.error(e);
+    addMessage("assistant","⚠️ خطا در دریافت پاسخ از AI.");
+  }finally{
     isProcessing=false;
     userInput.disabled=false;
     sendButton.disabled=false;
@@ -62,43 +99,12 @@ async function sendMessage(){
 }
 
 function addMessage(role, content){
-  const msgEl = document.createElement("div");
-  msgEl.className=`message ${role}`;
-
-  const contentEl=document.createElement("div");
-  contentEl.className="message-content";
-
-  renderMarkdown(contentEl, content);
-
-  msgEl.appendChild(contentEl);
-  chatMessages.appendChild(msgEl);
-  chatMessages.scrollTop=chatMessages.scrollHeight;
-}
-
-function renderMarkdown(el,text){
-  if(typeof marked!=="undefined"){
-    el.innerHTML = marked.parse(text);
-  } else {
-    el.textContent=text;
-  }
-  addCopyButtons(el);
-  chatMessages.scrollTop=chatMessages.scrollHeight;
-}
-
-function addCopyButtons(container){
-  const blocks=container.querySelectorAll("pre");
-  blocks.forEach(block=>{
-    if(block.querySelector(".copy-btn")) return;
-
-    const btn=document.createElement("button");
-    btn.className="copy-btn";
-    btn.innerText="Copy";
-    btn.onclick=()=>{
-      const code = block.querySelector("code").innerText;
-      navigator.clipboard.writeText(code);
-      btn.innerText="Copied!";
-      setTimeout(()=>btn.innerText="Copy",1500);
-    };
-    block.appendChild(btn);
-  });
+  const messageEl = document.createElement("div");
+  messageEl.className = `message ${role}`;
+  const contentEl = document.createElement("div");
+  contentEl.className = "message-content";
+  contentEl.textContent = content;
+  messageEl.appendChild(contentEl);
+  chatMessages.appendChild(messageEl);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 }
