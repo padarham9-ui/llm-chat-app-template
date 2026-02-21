@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Cloudflare AI Chat</title>
-
+<title>ChatGPT-Style AI Chat</title>
 <style>
 :root{
   --bg:#212121;
@@ -16,9 +15,7 @@
   --sub:#9ca3af;
   --accent:#10a37f;
 }
-
-*{box-sizing:border-box;margin:0;padding:0}
-
+*{box-sizing:border-box;margin:0;padding:0;}
 body{
   font-family:system-ui,-apple-system,Segoe UI,Roboto;
   background:var(--bg);
@@ -28,18 +25,16 @@ body{
   justify-content:center;
   align-items:center;
 }
-
 .chat-wrapper{
   display:flex;
   flex-direction:column;
   width:100%;
   max-width:900px;
-  height:90vh;
+  height:95vh;
   border:1px solid var(--border);
-  border-radius:12px;
+  border-radius:10px;
   overflow:hidden;
 }
-
 header{
   padding:16px;
   text-align:center;
@@ -47,51 +42,43 @@ header{
   font-weight:600;
   font-size:18px;
 }
-
 .chat-messages{
   flex:1;
   overflow-y:auto;
   padding:20px;
   display:flex;
   flex-direction:column;
-  gap:12px;
+  gap:16px;
 }
-
 .message{
   display:flex;
-  max-width:100%;
 }
-
 .message-content{
-  padding:10px 14px;
+  padding:12px 16px;
   border-radius:12px;
-  line-height:1.4;
-  word-break:break-word;
-  max-width:80%;
+  line-height:1.5;
   white-space:pre-wrap;
+  word-break:break-word;
+  max-width:75%;
+  position:relative;
 }
-
-.assistant{justify-content:flex-start;}
-.assistant .message-content{background:var(--assistant);}
-
-.user{justify-content:flex-end;}
-.user .message-content{background:var(--user);}
-
+.assistant{ justify-content:flex-start; }
+.assistant .message-content{ background:var(--assistant); }
+.user{ justify-content:flex-end; }
+.user .message-content{ background:var(--user); }
 .input-area{
   border-top:1px solid var(--border);
-  padding:12px 16px;
+  padding:12px;
   background:var(--bg);
 }
-
 .input-box{
   display:flex;
   align-items:flex-end;
   background:var(--input);
   border:1px solid var(--border);
   border-radius:14px;
-  padding:8px 10px;
+  padding:10px;
 }
-
 textarea{
   flex:1;
   background:transparent;
@@ -102,7 +89,6 @@ textarea{
   font-size:15px;
   max-height:150px;
 }
-
 button{
   background:var(--accent);
   border:none;
@@ -114,16 +100,20 @@ button{
   margin-left:8px;
   transition:.2s;
 }
-button:hover{opacity:.85;}
-
-footer{
-  text-align:center;
+button:hover{ opacity:.85; }
+.copy-btn{
+  position:absolute;
+  top:6px;
+  right:6px;
+  padding:3px 7px;
   font-size:12px;
-  color:var(--sub);
-  padding:6px;
+  border-radius:6px;
+  border:none;
+  cursor:pointer;
+  background:#10a37f;
+  color:#fff;
 }
 </style>
-
 </head>
 <body>
 
@@ -132,21 +122,143 @@ footer{
 
   <div id="chat-messages" class="chat-messages">
     <div class="message assistant">
-      <div class="message-content">سلام پرهام 😎  
-الان UI شبیه ChatGPT شد. بگو چی بسازیم؟</div>
+      <div class="message-content">
+        سلام پرهام 😎  
+        الان UI شبیه ChatGPT شد. بگو چی بسازیم؟
+      </div>
     </div>
   </div>
 
   <div class="input-area">
     <div class="input-box">
       <textarea id="user-input" placeholder="Message AI..."></textarea>
-      <button id="send-button">↑</button>
+      <button id="send-button" type="button">↑</button>
     </div>
   </div>
-
-  <footer>Powered by Cloudflare Workers AI</footer>
 </div>
 
-<script src="chat.js"></script>
+<script>
+// DOM
+const chatMessages = document.getElementById("chat-messages");
+const userInput = document.getElementById("user-input");
+const sendButton = document.getElementById("send-button");
+
+let chatHistory = [
+  { role: "assistant", content: "سلام پرهام 😎\nالان UI شبیه ChatGPT شد. بگو چی بسازیم؟" }
+];
+
+let isProcessing = false;
+
+// Auto resize textarea
+userInput.addEventListener("input", ()=>{
+  userInput.style.height = "auto";
+  userInput.style.height = userInput.scrollHeight + "px";
+});
+
+// Send on Enter
+userInput.addEventListener("keydown", e=>{
+  if(e.key==="Enter" && !e.shiftKey){
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// Send button
+sendButton.addEventListener("click", sendMessage);
+
+async function sendMessage(){
+  const message = userInput.value.trim();
+  if(!message || isProcessing) return;
+
+  isProcessing = true;
+  userInput.disabled = true;
+  sendButton.disabled = true;
+
+  addMessage("user", message);
+  userInput.value="";
+  userInput.style.height="auto";
+  chatHistory.push({ role:"user", content: message });
+
+  try{
+    const assistantEl = document.createElement("div");
+    assistantEl.className="message assistant";
+    const contentEl = document.createElement("div");
+    contentEl.className="message-content";
+    assistantEl.appendChild(contentEl);
+    chatMessages.appendChild(assistantEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Fake typing indicator
+    const fakeTyping = setTimeout(()=>{},0);
+
+    // Simulate API (برای تست)
+    const responseText = `سلام پرهام 😎\nاین یک پیام تست است.\n\n\`\`\`javascript\nconsole.log('Hello World');\n\`\`\``;
+
+    // Simulate streaming
+    let index=0;
+    const interval = setInterval(()=>{
+      if(index>=responseText.length){
+        clearInterval(interval);
+        chatHistory.push({ role:"assistant", content: responseText });
+        isProcessing=false;
+        userInput.disabled=false;
+        sendButton.disabled=false;
+        userInput.focus();
+        return;
+      }
+      const next = responseText.slice(index,index+1);
+      contentEl.textContent += next;
+      index++;
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    },10);
+
+    setTimeout(()=>renderMarkdown(contentEl, contentEl.textContent),responseText.length*10 + 100);
+
+  }catch(err){
+    console.error(err);
+    addMessage("assistant","⚠️ مشکلی رخ داد.");
+    isProcessing=false;
+    userInput.disabled=false;
+    sendButton.disabled=false;
+  }
+}
+
+function addMessage(role, content){
+  const msgEl=document.createElement("div");
+  msgEl.className=`message ${role}`;
+  const contentEl=document.createElement("div");
+  contentEl.className="message-content";
+  contentEl.textContent=content;
+  msgEl.appendChild(contentEl);
+  chatMessages.appendChild(msgEl);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Render markdown & code copy
+function renderMarkdown(element, text){
+  const codeRegex=/```([\s\S]*?)```/g;
+  let html=text.replace(codeRegex,(m,p1)=>`<pre><code>${p1.trim()}</code></pre>`);
+  html=html.split("\n\n").map(p=>p.includes("<pre>")?p:`<p>${p}</p>`).join("");
+  element.innerHTML=html;
+
+  // Add copy buttons
+  const blocks = element.querySelectorAll("pre");
+  blocks.forEach(block=>{
+    if(block.querySelector(".copy-btn")) return;
+    const btn=document.createElement("button");
+    btn.className="copy-btn";
+    btn.innerText="Copy";
+    btn.onclick=()=>{
+      const codeText=block.querySelector("code")?.innerText || "";
+      if(!codeText) return;
+      navigator.clipboard.writeText(codeText);
+      btn.innerText="Copied!";
+      setTimeout(()=>btn.innerText="Copy",1500);
+    };
+    block.style.position="relative";
+    block.appendChild(btn);
+  });
+}
+</script>
 </body>
 </html>
