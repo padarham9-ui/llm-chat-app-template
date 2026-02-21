@@ -1,9 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fa">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>configfars Ai</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>configfars AI</title>
+
 <style>
 :root{
   --bg:#212121;
@@ -16,15 +17,24 @@
   --accent:#10a37f;
 }
 
-*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto;}
-body{background:var(--bg);color:var(--text);height:100vh;display:flex;justify-content:center;align-items:center;}
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  font-family:system-ui,-apple-system,Segoe UI,Roboto;
+  background:var(--bg);
+  color:var(--text);
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
 
 .chat-wrapper{
   display:flex;
   flex-direction:column;
   width:100%;
-  max-width:900px;
-  height:95vh;
+  max-width:600px;
+  height:90vh;
   border:1px solid var(--border);
   border-radius:12px;
   overflow:hidden;
@@ -44,31 +54,42 @@ header{
   padding:16px;
   display:flex;
   flex-direction:column;
-  gap:10px;
+  gap:12px;
 }
 
 .message{
   display:flex;
-  max-width:80%;
 }
 
 .message-content{
   padding:10px 14px;
   border-radius:12px;
   line-height:1.4;
+  max-width:80%;
   word-break:break-word;
-  font-size:15px;
+  white-space:pre-wrap;
+  position:relative;
 }
 
-.assistant{justify-content:flex-start;}
-.assistant .message-content{background:var(--assistant);}
+.assistant{
+  justify-content:flex-start;
+}
 
-.user{justify-content:flex-end;}
-.user .message-content{background:var(--user);}
+.assistant .message-content{
+  background:var(--assistant);
+}
+
+.user{
+  justify-content:flex-end;
+}
+
+.user .message-content{
+  background:var(--user);
+}
 
 .input-area{
   border-top:1px solid var(--border);
-  padding:12px 16px;
+  padding:12px;
   background:var(--bg);
 }
 
@@ -77,8 +98,8 @@ header{
   align-items:flex-end;
   background:var(--input);
   border:1px solid var(--border);
-  border-radius:14px;
-  padding:8px 12px;
+  border-radius:12px;
+  padding:8px;
 }
 
 textarea{
@@ -89,7 +110,6 @@ textarea{
   resize:none;
   color:var(--text);
   font-size:15px;
-  min-height:36px;
   max-height:150px;
 }
 
@@ -101,148 +121,57 @@ button{
   border-radius:10px;
   cursor:pointer;
   font-weight:600;
-  margin-left:8px;
+  margin-left:6px;
   transition:.2s;
 }
-button:hover{opacity:.85;}
 
-footer{
-  text-align:center;
+button:hover{
+  opacity:.85;
+}
+
+.copy-btn{
+  position:absolute;
+  top:6px;
+  right:6px;
+  padding:4px 8px;
   font-size:12px;
+  border-radius:6px;
+  border:none;
+  cursor:pointer;
+  background:var(--accent);
+  color:#fff;
+}
+
+.typing{
+  font-size:14px;
   color:var(--sub);
-  padding:8px;
+  padding-left:6px;
 }
 </style>
+
 </head>
 <body>
 
 <div class="chat-wrapper">
-<header>configfars</header>
+
+<header>configfars AI Chat</header>
 
 <div id="chat-messages" class="chat-messages">
   <div class="message assistant">
-    <div class="message-content">
-      سلام داداش چطور میتونم کمکتون کنم؟
-    </div>
+    <div class="message-content">سلام چطور میتونم کمکتون کنم؟</div>
   </div>
 </div>
 
 <div class="input-area">
   <div class="input-box">
-    <textarea id="user-input" placeholder="پیام خود را وارد کنید..."></textarea>
-    <button id="send-button">↑</button>
+    <textarea id="user-input" placeholder="پیام خود را بنویس..."></textarea>
+    <button id="send-button">ارسال</button>
   </div>
 </div>
 
-<footer>Powered by Configfars</footer>
 </div>
 
-<script>
-const chatMessages = document.getElementById("chat-messages");
-const userInput = document.getElementById("user-input");
-const sendButton = document.getElementById("send-button");
-
-let chatHistory = [
-  {role:"assistant", content:"سلام چطور میتونم کمکتون کنم؟"}
-];
-let isProcessing = false;
-
-userInput.addEventListener("input", function(){
-  this.style.height="auto";
-  this.style.height=this.scrollHeight+"px";
-});
-
-userInput.addEventListener("keydown", function(e){
-  if(e.key==="Enter" && !e.shiftKey){
-    e.preventDefault();
-    sendMessage();
-  }
-});
-
-sendButton.addEventListener("click", sendMessage);
-
-function addMessage(role, content){
-  const msg = document.createElement("div");
-  msg.className="message "+role;
-  const contentEl = document.createElement("div");
-  contentEl.className="message-content";
-  contentEl.textContent=content;
-  msg.appendChild(contentEl);
-  chatMessages.appendChild(msg);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-async function sendMessage(){
-  const message=userInput.value.trim();
-  if(!message||isProcessing) return;
-
-  addMessage("user", message);
-  chatHistory.push({role:"user", content:message});
-  userInput.value="";
-  userInput.style.height="auto";
-
-  isProcessing=true;
-  userInput.disabled=true;
-  sendButton.disabled=true;
-
-  const assistantEl=document.createElement("div");
-  assistantEl.className="message assistant";
-  const contentEl=document.createElement("div");
-  contentEl.className="message-content";
-  contentEl.textContent="";
-  assistantEl.appendChild(contentEl);
-  chatMessages.appendChild(assistantEl);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-
-  try{
-    const response=await fetch("/api/chat",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({messages:chatHistory})
-    });
-    if(!response.ok) throw new Error("API Error");
-    const reader=response.body.getReader();
-    const decoder=new TextDecoder();
-    let buffer="";
-    let text="";
-    while(true){
-      const {done,value}=await reader.read();
-      if(done) break;
-      buffer+=decoder.decode(value,{stream:true});
-      const parts=buffer.split("\n\n");
-      buffer=parts.pop();
-      for(const part of parts){
-        const lines=part.split("\n");
-        for(const line of lines){
-          if(!line.startsWith("data:")) continue;
-          const data=line.replace("data:","").trim();
-          if(data==="[DONE]") break;
-          try{
-            const json=JSON.parse(data);
-            let content="";
-            if(json.response) content=json.response;
-            if(json.choices?.[0]?.delta?.content) content=json.choices[0].delta.content;
-            if(content){
-              text+=content;
-              contentEl.textContent=text;
-              chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-          }catch(e){console.error(e);}
-        }
-      }
-    }
-    chatHistory.push({role:"assistant", content:text});
-  }catch(e){
-    console.error(e);
-    addMessage("assistant","⚠️ خطا در دریافت پاسخ AI!");
-  }finally{
-    isProcessing=false;
-    userInput.disabled=false;
-    sendButton.disabled=false;
-    userInput.focus();
-  }
-}
-</script>
-
+<script src="chat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </body>
 </html>
